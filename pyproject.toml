@@ -1,0 +1,10 @@
+[project]
+name = "rag-against-the-machine"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "langchain-text-splitters>=1.1.2",
+    "rank-bm25",
+]
