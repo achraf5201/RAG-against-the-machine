@@ -37,7 +37,7 @@ class Rag:
 
         text_splitter = RecursiveCharacterTextSplitter.from_language(
             language=language,
-            chunk_size=200,
+            chunk_size=1000,
             chunk_overlap=20,
             add_start_index=True,
         )
@@ -75,7 +75,12 @@ r = Rag()
 r.chunking_markdown()
 r.chunking_python()
 
-for chunk in r.chunks:
-    print(chunk.page_content)
-    print(chunk.metadata)
-    print("\n---\n")
+with open("file.txt", "w") as f:
+    for chunk in r.chunks:
+        print(str(chunk.metadata))
+        # print(chunk.page_content)
+        # print(chunk.metadata)
+        f.write(chunk.page_content)
+        f.write('\n')
+        f.write(str(chunk.metadata["source"]))
+        f.write("\n\n\n")
