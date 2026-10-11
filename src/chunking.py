@@ -9,7 +9,7 @@ from pathlib import Path
 class Chunking:
     def __init__(self):
         self.chunks = []
-        self.path = Path("vllm-0.10.1")
+        self.path = Path("data")
 
     def load_documents(self, extension, file_type):
         documents = []

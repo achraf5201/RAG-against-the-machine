@@ -12,41 +12,39 @@ Manufacturing teams also focus on workplace safety. Employees receive training o
 
 New technologies continue to improve industrial processes. Digital simulations allow engineers to test production layouts before installing physical equipment. Data analysis helps managers compare performance across production lines and identify opportunities for improvement. By combining skilled employees with reliable technology, manufacturers can respond to changing demand while maintaining consistent standards and efficient operations."""
 
-print(
-    document1.count("machine"),
-    document2.count("machine"),
-    document3.count("machine"),
-    document4.count("machine"),
-)
+# print(
+#     document1.count("machine"),
+#     document2.count("machine"),
+#     document3.count("machine"),
+#     document4.count("machine"),
+# )
 
 
 import bm25s
 
-documents = [
-    document1,
-    document2,
-    document3,
-    document4,
-]
 
-corpus_tokens = bm25s.tokenize(documents)
-print(corpus_tokens)
+class Rag:
+    def __init__(self, chunks):
+        self.chunks = chunks
+        self.texts = [chunk.page_content for chunk in self.chunks]
+        self.corpus_tokens = bm25s.tokenize(self.texts)
+        self.retriever = bm25s.BM25()
 
-retriever = bm25s.BM25()
-retriever.index(corpus_tokens)
+    def indexing(self):
+        self.retriever.index(self.corpus_tokens)
 
-query = "How can I maintain a machine and prevent breakdowns?"
-query_tokens = bm25s.tokenize(query)
+    def retrieve(self, query, k=2):
+        query_tokens = bm25s.tokenize(query)
+        docs, scores = self.retriever.retrieve(query_tokens, k=k)
 
-results, scores = retriever.retrieve(
-    query_tokens,
-    k=2,
-    corpus=documents
-)
+        retrieved_chunks = []
 
+        for i, idx in enumerate(docs[0]):
+            idx = int(idx)
 
-for i in range(results.shape[1]):
-    print(f"Rank: {i + 1}")
-    print(f"Score: {scores[0, i]}")
-    print(f"Document: {results[0, i]}")
-    print("-" * 50)
+            retrieved_chunks.append(
+                {"document": self.chunks[idx], "score": float(scores[0, i])}
+            )
+
+        return retrieved_chunks
+
