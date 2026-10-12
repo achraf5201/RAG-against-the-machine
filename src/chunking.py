@@ -4,12 +4,13 @@ from langchain_text_splitters import (
     Language,
 )
 from pathlib import Path
+import fire
 
 
 class Chunking:
-    def __init__(self):
+    def __init__(self, path):
         self.chunks = []
-        self.path = Path("data")
+        self.path = path
 
     def load_documents(self, extension, file_type):
         documents = []
@@ -21,11 +22,7 @@ class Chunking:
             documents.append(
                 Document(
                     page_content=content,
-                    metadata={
-                        "source": str(filename),
-                        "filename": filename.name,
-                        "file_type": file_type,
-                    },
+                    metadata={"file_path": str(filename)},
                 )
             )
 
@@ -44,11 +41,11 @@ class Chunking:
         chunks = text_splitter.split_documents(documents)
 
         for chunk in chunks:
-            start = chunk.metadata["start_index"]
+            chunk.metadata["first_character_index"] = chunk.metadata["start_index"]
+            chunk.metadata.pop("start_index", None)
+            start = chunk.metadata["first_character_index"]
 
-            chunk.metadata["end_index"] = (
-                start + len(chunk.page_content)
-            )
+            chunk.metadata["last_character_index"] = start + len(chunk.page_content)
 
         self.chunks.extend(chunks)
 
