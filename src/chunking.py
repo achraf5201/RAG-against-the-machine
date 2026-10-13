@@ -4,15 +4,16 @@ from langchain_text_splitters import (
     Language,
 )
 from pathlib import Path
-import fire
+from src.models import MinimalSource
 
 
 class Chunking:
-    def __init__(self, path):
+    def __init__(self, path, max_chunk_size=200):
         self.chunks = []
         self.path = path
+        self.max_chunk_size = max_chunk_size
 
-    def load_documents(self, extension, file_type):
+    def load_documents(self, extension):
         documents = []
 
         for filename in self.path.rglob(extension):
@@ -28,15 +29,22 @@ class Chunking:
 
         return documents
 
-    def chunk(self, language, extension, file_type):
-        documents = self.load_documents(extension, file_type)
+    def chunk(self, language, extension):
+        documents = self.load_documents(extension)
 
-        text_splitter = RecursiveCharacterTextSplitter.from_language(
-            language=language,
-            chunk_size=1000,
-            chunk_overlap=20,
-            add_start_index=True,
-        )
+        if extension in ["*.py", "*.md"]:
+            text_splitter = RecursiveCharacterTextSplitter.from_language(
+                language=language,
+                chunk_size=self.max_chunk_size,
+                chunk_overlap=50,
+                add_start_index=True,
+            )
+        elif extension == "*.txt":
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=self.max_chunk_size,
+                chunk_overlap=50,
+                add_start_index=True,
+            )
 
         chunks = text_splitter.split_documents(documents)
 
@@ -46,7 +54,11 @@ class Chunking:
             start = chunk.metadata["first_character_index"]
 
             chunk.metadata["last_character_index"] = start + len(chunk.page_content)
-
+            MinimalSource(
+                file_path=chunk.metadata["file_path"],
+                first_character_index=chunk.metadata["first_character_index"],
+                last_character_index=chunk.metadata["last_character_index"],
+            )
         self.chunks.extend(chunks)
 
         return chunks
@@ -55,12 +67,16 @@ class Chunking:
         return self.chunk(
             language=Language.MARKDOWN,
             extension="*.md",
-            file_type="markdown",
         )
 
     def chunking_python(self):
         return self.chunk(
             language=Language.PYTHON,
             extension="*.py",
-            file_type="python",
+        )
+
+    def chunking_text(self):
+        return self.chunk(
+            language=None,
+            extension="*.txt",
         )
