@@ -5,6 +5,8 @@ import uuid
 from pathlib import Path
 from src.chunking import Chunking
 from src.models import MinimalSearchResults
+from transformers import AutoModelForCasualLM, AutoTo
+
 
 class Rag:
     def __init__(self):
@@ -44,7 +46,9 @@ class Rag:
             exit()
 
         query_tokens = bm25s.tokenize(query)
-        result, scores = self.retriever.retrieve(query_tokens, k=min(k, len(self.chunks)))
+        result, scores = self.retriever.retrieve(
+            query_tokens, k=min(k, len(self.chunks))
+        )
         retrieved_chunks = []
 
         for idx in result[0]:
@@ -69,9 +73,18 @@ class Rag:
         with open(filename, "r") as f:
             self.contents.append(f.read())
 
-    # def answer(self, query, k=5):
-    #     retrieved_chunks = self.search(query, k)
-    #     self.contents = []
-    #     for file_path, index_c in retrieved_chunks:
-    #         start, end = index_c
-    #         self._load_content(file_path)
+    def answer(self, query, k=5):
+        retrieved_chunks = self.search(query, k)
+        self.contents = []
+        for chunk_info in retrieved_chunks:
+            with open(chunk_info["file_path"]) as f:
+                f.seek(chunk_info["first_character_index"])
+                self.contents.append(
+                    f.read(
+                        chunk_info["last_character_index"]
+                        - chunk_info["first_character_index"]
+                    )
+                )
+        for f in self.contents:
+            print(f)
+            print("-" * 50)
