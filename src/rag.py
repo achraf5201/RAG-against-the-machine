@@ -5,7 +5,7 @@ import uuid
 from pathlib import Path
 from src.chunking import Chunking
 from src.models import MinimalSearchResults
-# from transformers import AutoModelForCasualLM, AutoTo
+from transformers import AutoModelForCausalLM, AutoTokenizer    
 
 
 class Rag:
