@@ -5,7 +5,7 @@ import uuid
 from pathlib import Path
 from src.chunking import Chunking
 from src.models import MinimalSearchResults
-from transformers import AutoModelForCausalLM, AutoTokenizer    
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
 class Rag:
@@ -85,7 +85,31 @@ class Rag:
                         - chunk_info["first_character_index"]
                     )
                 )
-        for f in self.contents:
-            print(f)
-            print("-" * 50)
-        # ai answer
+        # for f in self.contents:
+        #     print(f)
+        #     print("-" * 50)
+        model_name = "Qwen/Qwen3-0.6B"
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModelForCausalLM.from_pretrained(model_name)
+
+        prompt = f"""Answer the question based strictly on the provided context.
+
+        Context:
+        {self.contents}
+
+        Question:
+        {query}
+
+        Answer:"""
+
+        inputs = self.tokenizer(prompt, return_tensors="pt")
+        outputs = self.model.generate(**inputs, max_new_tokens=50)
+        full_response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+        final_answer = full_response.split("Answer:")[-1].strip()
+
+        print(f"--- RAG PIPELINE COMPLETE ---")
+        print(f"User Query: {query}")
+        # print(f"BM25 Found: {context[0]}")
+        print(f"LLM Says:   {final_answer}")
+
+        return final_answer

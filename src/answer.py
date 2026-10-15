@@ -10,13 +10,7 @@ model_name = "Qwen/Qwen3-0.6B"
 
 # # prepare the model input
 # prompt = "Give me a short introduction to large language model."
-# messages = [{"role": "user", "content": prompt}]
-# text = tokenizer.apply_chat_template(
-#     messages,
-#     tokenize=False,
-#     add_generation_prompt=True,
-#     enable_thinking=True,  # Switches between thinking and non-thinking modes. Default is True.
-# )
+
 # model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
 
 # # conduct text completion
@@ -47,9 +41,16 @@ tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForCausalLM.from_pretrained(model_name)
 
 prompt = "Give me a short introduction to large language model."
+messages = [{"role": "user", "content": prompt}]
+text = tokenizer.apply_chat_template(
+    messages,
+    tokenize=False,
+    add_generation_prompt=True,
+    enable_thinking=True,
+)
 inputs = tokenizer(text, return_tensors="pt")
 
-outputs = model.generate(**inputs, max_new_tokens=30)
+outputs = model.generate(**inputs, max_new_tokens=32768)
 
 result = tokenizer.decode(outputs[0], skip_special_tokens=True)
 
