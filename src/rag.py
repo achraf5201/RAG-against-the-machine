@@ -2,6 +2,7 @@ import bm25s
 import json
 import fire
 import uuid
+import torch
 from pathlib import Path
 from src.chunking import Chunking
 from src.models import MinimalSearchResults
@@ -69,47 +70,67 @@ class Rag:
 
         return retrieved_chunks
 
-    def _load_content(self, filename):
-        with open(filename, "r") as f:
-            self.contents.append(f.read())
+    def _load_chunk_text(self, chunk):
+        # Read the file once and slice by character index.
+        # (f.seek() in text mode uses byte/opaque offsets, not character offsets.)
+        text = Path(chunk["file_path"]).read_text(encoding="utf-8", errors="replace")
+        return text[chunk["first_character_index"] : chunk["last_character_index"]]
 
-    def answer(self, query, k=5):
+    def _load_model(self, model_name="Qwen/Qwen3-0.6B"):
+        # Load once and reuse instead of reloading on every answer() call.
+        if getattr(self, "model", None) is None:
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+            self.model = AutoModelForCausalLM.from_pretrained(model_name)
+            self.model.eval()
+
+    def answer(self, query, k=5, max_new_tokens=256):
         retrieved_chunks = self.search(query, k)
+
         self.contents = []
         for chunk_info in retrieved_chunks:
-            with open(chunk_info["file_path"]) as f:
-                f.seek(chunk_info["first_character_index"])
-                self.contents.append(
-                    f.read(
-                        chunk_info["last_character_index"]
-                        - chunk_info["first_character_index"]
-                    )
-                )
-        # for f in self.contents:
-        #     print(f)
-        #     print("-" * 50)
-        model_name = "Qwen/Qwen3-0.6B"
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModelForCausalLM.from_pretrained(model_name)
+            try:
+                self.contents.append(self._load_chunk_text(chunk_info))
+            except OSError as e:
+                print(f"Could not read {chunk_info['file_path']}: {e}")
 
-        prompt = f"""Answer the question based strictly on the provided context.
+        if not self.contents:
+            return "No context could be loaded for this question."
 
-        Context:
-        {self.contents}
+        context = "\n\n".join(
+            f"[Source {i}: {c['file_path']}]\n{text}"
+            for i, (c, text) in enumerate(zip(retrieved_chunks, self.contents), 1)
+        )
 
-        Question:
-        {query}
+        self._load_model()
 
-        Answer:"""
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "Answer the question based strictly on the provided context. "
+                    "If the context does not contain the answer, say you don't know."
+                ),
+            },
+            {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {query}"},
+        ]
+        prompt = self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+            enable_thinking=False,
+        )
 
-        inputs = self.tokenizer(prompt, return_tensors="pt")
-        outputs = self.model.generate(**inputs, max_new_tokens=50)
-        full_response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-        final_answer = full_response.split("Answer:")[-1].strip()
+        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
+        with torch.no_grad():
+            outputs = self.model.generate(
+                **inputs, max_new_tokens=max_new_tokens, do_sample=False
+            )
 
-        print(f"--- RAG PIPELINE COMPLETE ---")
+        new_tokens = outputs[0][inputs["input_ids"].shape[1] :]
+        final_answer = self.tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
+
+        print("--- RAG PIPELINE COMPLETE ---")
         print(f"User Query: {query}")
-        # print(f"BM25 Found: {context[0]}")
         print(f"LLM Says:   {final_answer}")
 
         return final_answer
