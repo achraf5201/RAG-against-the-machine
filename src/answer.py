@@ -4,7 +4,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 class QwenChat:
     def __init__(
-        self, model_name="Qwen/Qwen3-0.6B", enable_thinking=True, max_new_tokens=2048
+        self, model_name="Qwen/Qwen3-0.6B", enable_thinking=False, max_new_tokens=2048
     ):
         self.model_name = model_name
         self.enable_thinking = enable_thinking
@@ -20,11 +20,14 @@ class QwenChat:
             {
                 "role": "system",
                 "content": (
-                    "Answer the question based strictly on the provided context, and print the source."
-                    "If the context does not contain the answer, say you don't know."
+                    "Answer the question using only the context. "
+                    "Be concise. If the context is insufficient, say you don't know."
                 ),
             },
-            {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {query}"},
+            {
+                "role": "user",
+                "content": f"Context:\n{context}\n\nQuestion: {query}",
+            },
         ]
 
         text = self.tokenizer.apply_chat_template(

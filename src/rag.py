@@ -92,6 +92,7 @@ class Rag:
             f"[Source {i}: {c['file_path']}]\n{text}"
             for i, (c, text) in enumerate(zip(retrieved_chunks, self.contents), 1)
         )
+        print(context)
         qwen = QwenChat()
         final_answer = qwen.generate(context, query)
 
