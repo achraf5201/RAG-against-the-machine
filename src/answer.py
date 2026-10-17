@@ -1,57 +1,66 @@
+import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
-model_name = "Qwen/Qwen3-0.6B"
+class QwenChat:
+    def __init__(
+        self, model_name="Qwen/Qwen3-0.6B", enable_thinking=True, max_new_tokens=2048
+    ):
+        self.model_name = model_name
+        self.enable_thinking = enable_thinking
+        self.max_new_tokens = max_new_tokens
 
-# tokenizer = AutoTokenizer.from_pretrained(model_name)
-# model = AutoModelForCausalLM.from_pretrained(
-#     model_name, torch_dtype="auto", device_map="auto"
-# )
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModelForCausalLM.from_pretrained(
+            model_name, torch_dtype="auto", device_map="auto"
+        )
 
-# # prepare the model input
-# prompt = "Give me a short introduction to large language model."
+    def generate(self, context, query):
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "Answer the question based strictly on the provided context, and print the source."
+                    "If the context does not contain the answer, say you don't know."
+                ),
+            },
+            {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {query}"},
+        ]
 
-# model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
+        text = self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+            enable_thinking=self.enable_thinking,
+        )
 
-# # conduct text completion
-# generated_ids = model.generate(**model_inputs, max_new_tokens=32768)
-# output_ids = generated_ids[0][len(model_inputs.input_ids[0]) :].tolist()
+        model_inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
 
-# # parsing thinking content
-# try:
-#     # rindex finding 151668 (</think>)
-#     index = len(output_ids) - output_ids[::-1].index(151668)
-# except ValueError:
-#     index = 0
+        with torch.inference_mode():
+            generated_ids = self.model.generate(
+                **model_inputs, max_new_tokens=self.max_new_tokens
+            )
 
-# thinking_content = tokenizer.decode(output_ids[:index], skip_special_tokens=True).strip(
-#     "\n"
-# )
-# content = tokenizer.decode(output_ids[index:], skip_special_tokens=True).strip("\n")
+        output_ids = generated_ids[0][len(model_inputs.input_ids[0]) :].tolist()
 
-# print("thinking content:", thinking_content)
-# print("content:", content)
-# print("-----------------------------------------")
+        try:
+            index = len(output_ids) - output_ids[::-1].index(151668)
+        except ValueError:
+            index = 0
+
+        content = self.tokenizer.decode(
+            output_ids[index:], skip_special_tokens=True
+        ).strip("\n")
+
+        return content
 
 
-from transformers import AutoModelForCausalLM, AutoTokenizer
+if __name__ == "__main__":
+    chatbot = QwenChat(
+        model_name="Qwen/Qwen3-0.6B", enable_thinking=True, max_new_tokens=2048
+    )
 
-tokenizer = AutoTokenizer.from_pretrained(model_name)
+    result = chatbot.generate("Give me a short introduction to large language models.")
 
-model = AutoModelForCausalLM.from_pretrained(model_name)
-
-prompt = "Give me a short introduction to large language model."
-messages = [{"role": "user", "content": prompt}]
-text = tokenizer.apply_chat_template(
-    messages,
-    tokenize=False,
-    add_generation_prompt=True,
-    enable_thinking=True,
-)
-inputs = tokenizer(text, return_tensors="pt")
-
-outputs = model.generate(**inputs, max_new_tokens=32768)
-
-result = tokenizer.decode(outputs[0], skip_special_tokens=True)
-
-print(result)
+    print("Thinking content:", result["thinking"])
+    print("Content:", result["content"])

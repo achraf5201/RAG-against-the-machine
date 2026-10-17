@@ -6,6 +6,7 @@ import torch
 from pathlib import Path
 from src.chunking import Chunking
 from src.models import MinimalSearchResults
+from src.answer import QwenChat
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
@@ -71,17 +72,8 @@ class Rag:
         return retrieved_chunks
 
     def _load_chunk_text(self, chunk):
-        # Read the file once and slice by character index.
-        # (f.seek() in text mode uses byte/opaque offsets, not character offsets.)
         text = Path(chunk["file_path"]).read_text(encoding="utf-8", errors="replace")
         return text[chunk["first_character_index"] : chunk["last_character_index"]]
-
-    def _load_model(self, model_name="Qwen/Qwen3-0.6B"):
-        # Load once and reuse instead of reloading on every answer() call.
-        if getattr(self, "model", None) is None:
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-            self.model = AutoModelForCausalLM.from_pretrained(model_name)
-            self.model.eval()
 
     def answer(self, query, k=5, max_new_tokens=256):
         retrieved_chunks = self.search(query, k)
@@ -100,37 +92,15 @@ class Rag:
             f"[Source {i}: {c['file_path']}]\n{text}"
             for i, (c, text) in enumerate(zip(retrieved_chunks, self.contents), 1)
         )
-
-        self._load_model()
-
-        messages = [
-            {
-                "role": "system",
-                "content": (
-                    "Answer the question based strictly on the provided context. "
-                    "If the context does not contain the answer, say you don't know."
-                ),
-            },
-            {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {query}"},
-        ]
-        prompt = self.tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True,
-            enable_thinking=False,
-        )
-
-        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
-        with torch.no_grad():
-            outputs = self.model.generate(
-                **inputs, max_new_tokens=max_new_tokens, do_sample=False
-            )
-
-        new_tokens = outputs[0][inputs["input_ids"].shape[1] :]
-        final_answer = self.tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
+        qwen = QwenChat()
+        final_answer = qwen.generate(context, query)
 
         print("--- RAG PIPELINE COMPLETE ---")
         print(f"User Query: {query}")
         print(f"LLM Says:   {final_answer}")
 
         return final_answer
+# """
+    # To configure the OpenAI server, set the API key and API base URL as specified in the examples. For example:  - **API Key**: Use `"EMPTY"` (as shown in the context). - **API Base**: Use `"http://localhost:8000/v1"`.  These parameters are required to connect to the vLLM server using the OpenAI-compatible Completions API.
+    # The configuration of the OpenAI server can be done by modifying the `openai_api_key` and `openai_api_base` variables in the script.
+# """
