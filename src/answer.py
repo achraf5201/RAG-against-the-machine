@@ -56,14 +56,3 @@ class QwenChat:
         ).strip("\n")
 
         return content
-
-
-if __name__ == "__main__":
-    chatbot = QwenChat(
-        model_name="Qwen/Qwen3-0.6B", enable_thinking=True, max_new_tokens=2048
-    )
-
-    result = chatbot.generate("Give me a short introduction to large language models.")
-
-    print("Thinking content:", result["thinking"])
-    print("Content:", result["content"])

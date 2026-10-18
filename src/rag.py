@@ -5,7 +5,12 @@ import uuid
 import torch
 from pathlib import Path
 from src.chunking import Chunking
-from src.models import MinimalSearchResults, StudentSearchResults
+from src.models import (
+    MinimalSearchResults,
+    StudentSearchResults,
+    AnsweredQuestion,
+    MinimalSource,
+)
 from src.answer import QwenChat
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -58,16 +63,11 @@ class Rag:
             chunk = self.chunks[idx]
             retrieved_chunks.append(chunk)
 
-        obj = MinimalSearchResults(
+        MinimalSearchResults(
             question_id=str(uuid.uuid4()),
             question=query,
             retrieved_sources=retrieved_chunks,
         )
-        data = obj.model_dump()
-        path = Path("data/output")
-        path.mkdir(parents=True, exist_ok=True)
-        with open("data/output/result.json", "w") as f:
-            json.dump(data, f, indent=4)
 
         return retrieved_chunks
 
@@ -100,33 +100,66 @@ class Rag:
         text = Path(chunk["file_path"]).read_text(encoding="utf-8", errors="replace")
         return text[chunk["first_character_index"] : chunk["last_character_index"]]
 
-    def answer(self, query, k=5, max_new_tokens=256):
+    def answer(self, query, k=5):
         retrieved_chunks = self.search(query, k)
 
-        self.contents = []
+        contents = []
         for chunk_info in retrieved_chunks:
             try:
-                self.contents.append(self._load_chunk_text(chunk_info))
+                contents.append(self._load_chunk_text(chunk_info))
             except OSError as e:
                 print(f"Could not read {chunk_info['file_path']}: {e}")
 
-        if not self.contents:
+        if not contents:
             return "No context could be loaded for this question."
 
-        context = "\n\n".join(
-            f"[Source {i}: {c['file_path']}]\n{text}"
-            for i, (c, text) in enumerate(zip(retrieved_chunks, self.contents), 1)
-        )
+        context = "\n\n".join(contents)
         qwen = QwenChat()
-        answer = qwen.generate(context, query)
+        sources = [MinimalSource(**chunk_info) for chunk_info in retrieved_chunks]
+        result = qwen.generate(context, query)
         final_answer = {
-            "sources": [chunk_info for chunk_info in retrieved_chunks],
-            "answer": answer
+            "question_id": str(uuid.uuid4()),
+            "question": query,
+            "sources": sources,
+            "answer": result,
         }
-        return final_answer
 
+        final_answer = AnsweredQuestion(**final_answer)
+        return final_answer.model_dump()
 
-# """
-# To configure the OpenAI server, set the API key and API base URL as specified in the examples. For example:  - **API Key**: Use `"EMPTY"` (as shown in the context). - **API Base**: Use `"http://localhost:8000/v1"`.  These parameters are required to connect to the vLLM server using the OpenAI-compatible Completions API.
-# The configuration of the OpenAI server can be done by modifying the `openai_api_key` and `openai_api_base` variables in the script.
-# """
+    def answer_dataset(self, student_search_results_path, save_directory):
+        data = {}
+        answer_dataset_result = []
+
+        path = Path(save_directory)
+        path.mkdir(parents=True, exist_ok=True)
+
+        with open(student_search_results_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        for search in data["search_results"]:
+            contents = []
+            for chunk_info in search["retrieved_sources"]:
+                try:
+                    contents.append(self._load_chunk_text(chunk_info))
+                except OSError as e:
+                    print(f"Could not read {chunk_info['file_path']}: {e}")
+            if not contents:
+                return "No context could be loaded for this question."
+
+            context = "\n\n".join(contents)
+            qwen = QwenChat()
+            sources = [
+                MinimalSource(**chunk_info)
+                for chunk_info in search["retrieved_sources"]
+            ]
+            result = qwen.generate(context, search["question"])
+            final_answer = {
+                "question_id": str(uuid.uuid4()),
+                "question": search["question"],
+                "sources": sources,
+                "answer": result,
+            }
+            print(final_answer)
+            answer_dataset_result.append(final_answer=AnsweredQuestion(**final_answer))
+        print(answer_dataset_result)
