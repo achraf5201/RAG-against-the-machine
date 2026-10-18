@@ -17,7 +17,7 @@ class Rag:
         self.raw_dir = Path("data/raw")
 
     def index(self, max_chunk_size=2000):
-        self.chunking = Chunking(Path("vllm-0.10.1"), max_chunk_size)
+        self.chunking = Chunking(Path(self.raw_dir), max_chunk_size)
         self.chunking.chunking_markdown()
         self.chunking.chunking_python()
         self.chunking.chunking_text()
@@ -117,14 +117,12 @@ class Rag:
             f"[Source {i}: {c['file_path']}]\n{text}"
             for i, (c, text) in enumerate(zip(retrieved_chunks, self.contents), 1)
         )
-        print(context)
         qwen = QwenChat()
-        final_answer = qwen.generate(context, query)
-
-        print("--- RAG PIPELINE COMPLETE ---")
-        print(f"User Query: {query}")
-        print(f"LLM Says:   {final_answer}")
-
+        answer = qwen.generate(context, query)
+        final_answer = {
+            "sources": [chunk_info for chunk_info in retrieved_chunks],
+            "answer": answer
+        }
         return final_answer
 
 
