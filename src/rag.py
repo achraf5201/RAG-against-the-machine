@@ -5,7 +5,7 @@ import uuid
 import torch
 from pathlib import Path
 from src.chunking import Chunking
-from src.models import MinimalSearchResults
+from src.models import MinimalSearchResults, StudentSearchResults
 from src.answer import QwenChat
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -71,6 +71,31 @@ class Rag:
 
         return retrieved_chunks
 
+    def search_dataset(self, dataset_path, k, save_directory):
+        data = {}
+
+        path = Path(save_directory)
+        path.mkdir(parents=True, exist_ok=True)
+
+        with open(dataset_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        search_results = []
+
+        for d in data["rag_questions"]:
+            search_results.append(
+                {
+                    "question_id": d["question_id"],
+                    "question": d["question"],
+                    "retrieved_sources": self.search(d["question"], k),
+                }
+            )
+
+        result = StudentSearchResults(search_results=search_results, k=k)
+        result = result.model_dump()
+        with open(save_directory + "search.json", "w", encoding="utf-8") as f:
+            json.dump(result, f, indent=4)
+        return result
+
     def _load_chunk_text(self, chunk):
         text = Path(chunk["file_path"]).read_text(encoding="utf-8", errors="replace")
         return text[chunk["first_character_index"] : chunk["last_character_index"]]
@@ -101,7 +126,9 @@ class Rag:
         print(f"LLM Says:   {final_answer}")
 
         return final_answer
+
+
 # """
-    # To configure the OpenAI server, set the API key and API base URL as specified in the examples. For example:  - **API Key**: Use `"EMPTY"` (as shown in the context). - **API Base**: Use `"http://localhost:8000/v1"`.  These parameters are required to connect to the vLLM server using the OpenAI-compatible Completions API.
-    # The configuration of the OpenAI server can be done by modifying the `openai_api_key` and `openai_api_base` variables in the script.
+# To configure the OpenAI server, set the API key and API base URL as specified in the examples. For example:  - **API Key**: Use `"EMPTY"` (as shown in the context). - **API Base**: Use `"http://localhost:8000/v1"`.  These parameters are required to connect to the vLLM server using the OpenAI-compatible Completions API.
+# The configuration of the OpenAI server can be done by modifying the `openai_api_key` and `openai_api_base` variables in the script.
 # """
