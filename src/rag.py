@@ -97,8 +97,10 @@ class Rag:
         return result
 
     def _load_chunk_text(self, chunk):
-        text = Path(chunk["file_path"]).read_text(encoding="utf-8", errors="replace")
-        return text[chunk["first_character_index"] : chunk["last_character_index"]]
+        text = Path(
+            chunk["file_path"]).read_text(encoding="utf-8", errors="replace")
+        return text[
+            chunk["first_character_index"]: chunk["last_character_index"]]
 
     def answer(self, query, k=5):
         retrieved_chunks = self.search(query, k)

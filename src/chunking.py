@@ -49,11 +49,13 @@ class Chunking:
         chunks = text_splitter.split_documents(documents)
 
         for chunk in chunks:
-            chunk.metadata["first_character_index"] = chunk.metadata["start_index"]
+            chunk.metadata[
+                "first_character_index"] = chunk.metadata["start_index"]
             chunk.metadata.pop("start_index", None)
             start = chunk.metadata["first_character_index"]
 
-            chunk.metadata["last_character_index"] = start + len(chunk.page_content)
+            chunk.metadata[
+                "last_character_index"] = start + len(chunk.page_content)
             MinimalSource(
                 file_path=chunk.metadata["file_path"],
                 first_character_index=chunk.metadata["first_character_index"],
