@@ -13,5 +13,8 @@ answer:
 answer_dataset:
 	uv run -m src answer_dataset -student_search_results_path "data/output/search_results/search.json" -save_directory "data/output/answer_results/"
 
+mkdir:
+	mkdir -p data/raw
+
 clean:
 	rm -rf data
