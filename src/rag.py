@@ -3,6 +3,7 @@ import json
 import fire
 import uuid
 import torch
+from tqdm import tqdm
 from pathlib import Path
 from src.chunking import Chunking
 from src.models import (
@@ -165,3 +166,7 @@ class Rag:
             print(final_answer)
             answer_dataset_result.append(final_answer=AnsweredQuestion(**final_answer))
         print(answer_dataset_result)
+        return answer_dataset_result
+
+    def evaluate(self, student_search_results_path, dataset_path):
+        pass
