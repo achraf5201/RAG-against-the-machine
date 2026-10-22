@@ -185,6 +185,6 @@ class Rag:
         print(answer_dataset_result)
         return answer_dataset_result
 
-    def evaluate(self, student_search_results_path, dataset_path=None):
+    def evaluate(self, student_search_results_path, dataset_path):
         obj = recall()
-        obj.recall_at_k(student_search_results_path)
+        obj.recall_at_k(student_search_results_path, dataset_path)
