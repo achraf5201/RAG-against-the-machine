@@ -12,7 +12,7 @@ class QwenChat:
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForCausalLM.from_pretrained(
-            model_name, torch_dtype="auto", device_map="auto"
+            model_name, torch_dtype=torch.float32,
         )
 
     def generate(self, context, query):

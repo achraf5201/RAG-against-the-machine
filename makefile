@@ -1,11 +1,11 @@
 index:
-	uv run python -m src index -max_chunk_size 2000
+	uv run -m src index -max_chunk_size 2000
 
 search:
 	uv run -m src search "How to configure OpenAI server?" 5
 
 search_dataset:
-	uv run -m src search_dataset -dataset_path "data/datasets_public/public/UnansweredQuestions/dataset_code_public.json" -k 5 -save_directory "data/output/search_results/"
+	uv run -m src search_dataset -dataset_path "data/datasets_public/public/UnansweredQuestions/dataset_docs_public.json" -k 10 -save_directory "data/output/search_results/"
 
 answer:
 	uv run -m src answer "How to configure OpenAI server?" 5
@@ -15,6 +15,10 @@ answer_dataset:
 
 mkdir:
 	mkdir -p data/raw
+
+unzip: 
+	unzip vllm-0.10.1.zip -d data/raw/
+	unzip datasets_public.zip -d data
 
 clean:
 	rm -rf data

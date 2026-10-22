@@ -38,7 +38,7 @@ class Rag:
         with open(self.processed_dir / "chunks.json", "w", encoding="utf-8") as f:
             json.dump(chunk_metadata, f, indent=4)
 
-    def load_index(self):
+    def _load_index(self):
         self.retriever = bm25s.BM25.load(
             self.processed_dir / "bm25_index", load_vocab=True
         )
@@ -48,7 +48,7 @@ class Rag:
 
     def search(self, query, k=5):
         try:
-            self.load_index()
+            self._load_index()
         except Exception as e:
             print(e)
             exit()
