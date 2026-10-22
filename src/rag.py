@@ -6,6 +6,7 @@ import torch
 from tqdm import tqdm
 from pathlib import Path
 from src.chunking import Chunking
+from src.own_recall import recall
 from src.models import (
     MinimalSearchResults,
     StudentSearchResults,
@@ -16,10 +17,15 @@ from src.answer import QwenChat
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
+def print_and_exit(e):
+    print(e)
+    exit()
+
+
 class Rag:
     def __init__(self):
         self.retriever = bm25s.BM25()
-        self.processed_dir = Path("data/processed")
+        self.dir_path = Path("data/processed")
         self.raw_dir = Path("data/raw")
 
     def index(self, max_chunk_size=2000):
@@ -29,29 +35,34 @@ class Rag:
         self.chunking.chunking_text()
         self.chunks = self.chunking.chunks
         self.texts = [chunk.page_content for chunk in self.chunks]
+        try:
+            if len(self.texts) == 0:
+                raise ValueError("No text chunks were found.")
+        except ValueError as e:
+            print_and_exit(e)
 
         self.corpus_tokens = bm25s.tokenize(self.texts)
         self.retriever.index(self.corpus_tokens)
-        self.processed_dir.mkdir(parents=True, exist_ok=True)
-        self.retriever.save(self.processed_dir / "bm25_index")
+        self.dir_path.mkdir(parents=True, exist_ok=True)
+        self.retriever.save(self.dir_path / "bm25_index")
         chunk_metadata = [chunk.metadata for chunk in self.chunks]
-        with open(self.processed_dir / "chunks.json", "w", encoding="utf-8") as f:
+        with open(self.dir_path / "chunks.json", "w", encoding="utf-8") as f:
             json.dump(chunk_metadata, f, indent=4)
 
     def _load_index(self):
         self.retriever = bm25s.BM25.load(
-            self.processed_dir / "bm25_index", load_vocab=True
-        )
-
-        with open(self.processed_dir / "chunks.json", "r", encoding="utf-8") as f:
-            self.chunks = json.load(f)
+            self.dir_path / "bm25_index", load_vocab=True)
+        try:
+            with open(self.dir_path / "chunks.json", "r", encoding="utf-8") as f:
+                self.chunks = json.load(f)
+        except Exception as e:
+            print_and_exit(e)
 
     def search(self, query, k=5):
         try:
             self._load_index()
         except Exception as e:
-            print(e)
-            exit()
+            print_and_exit(e)
 
         query_tokens = bm25s.tokenize(query)
         result, scores = self.retriever.retrieve(
@@ -74,14 +85,16 @@ class Rag:
 
     def search_dataset(self, dataset_path, k, save_directory):
         data = {}
-
         path = Path(save_directory)
         path.mkdir(parents=True, exist_ok=True)
 
-        with open(dataset_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        search_results = []
+        try:
+            with open(dataset_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as e:
+            print_and_exit(e)
 
+        search_results = []
         for d in data["rag_questions"]:
             search_results.append(
                 {
@@ -118,7 +131,8 @@ class Rag:
 
         context = "\n\n".join(contents)
         qwen = QwenChat()
-        sources = [MinimalSource(**chunk_info) for chunk_info in retrieved_chunks]
+        sources = [
+            MinimalSource(**chunk_info) for chunk_info in retrieved_chunks]
         result = qwen.generate(context, query)
         final_answer = {
             "question_id": str(uuid.uuid4()),
@@ -136,9 +150,11 @@ class Rag:
 
         path = Path(save_directory)
         path.mkdir(parents=True, exist_ok=True)
-
-        with open(student_search_results_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        try:
+            with open(student_search_results_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as e:
+            print_and_exit(e)
 
         for search in data["search_results"]:
             contents = []
@@ -164,9 +180,11 @@ class Rag:
                 "answer": result,
             }
             print(final_answer)
-            answer_dataset_result.append(final_answer=AnsweredQuestion(**final_answer))
+            answer_dataset_result.append(
+                final_answer=AnsweredQuestion(**final_answer))
         print(answer_dataset_result)
         return answer_dataset_result
 
-    def evaluate(self, student_search_results_path, dataset_path):
-        pass
+    def evaluate(self, student_search_results_path, dataset_path=None):
+        obj = recall()
+        obj.recall_at_k(student_search_results_path)
