@@ -36,13 +36,13 @@ class Chunking:
             text_splitter = RecursiveCharacterTextSplitter.from_language(
                 language=language,
                 chunk_size=self.max_chunk_size,
-                chunk_overlap=50,
+                chunk_overlap=100,
                 add_start_index=True,
             )
         elif extension == "*.txt":
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=self.max_chunk_size,
-                chunk_overlap=50,
+                chunk_overlap=100,
                 add_start_index=True,
             )
 
@@ -62,8 +62,6 @@ class Chunking:
                 last_character_index=chunk.metadata["last_character_index"],
             )
         self.chunks.extend(chunks)
-
-        return chunks
 
     def chunking_markdown(self):
         return self.chunk(
