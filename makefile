@@ -13,6 +13,9 @@ answer:
 answer_dataset:
 	uv run -m src answer_dataset -student_search_results_path "data/output/search_results/search.json" -save_directory "data/output/answer_results/"
 
+evaluate:
+	uv run -m src evaluate -student_search_results_path data/output/search_results/search.json -dataset_path data/datasets_public/public/AnsweredQuestions/dataset_docs_public.json
+
 mkdir:
 	mkdir -p data/raw
 
@@ -22,3 +25,6 @@ unzip:
 
 clean:
 	rm -rf data
+
+flake8:
+	uv run -m flake8 src

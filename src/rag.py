@@ -1,12 +1,10 @@
 import bm25s
 import json
-import fire
 import uuid
-import torch
 from tqdm import tqdm
 from pathlib import Path
 from src.chunking import Chunking
-from src.own_recall import recall
+from src.own_recall import Recall
 from src.models import (
     MinimalSearchResults,
     StudentSearchResults,
@@ -53,7 +51,8 @@ class Rag:
         self.retriever = bm25s.BM25.load(
             self.dir_path / "bm25_index", load_vocab=True)
         try:
-            with open(self.dir_path / "chunks.json", "r", encoding="utf-8") as f:
+            with open(
+                self.dir_path / "chunks.json", "r", encoding="utf-8") as f:
                 self.chunks = json.load(f)
         except Exception as e:
             print_and_exit(e)
@@ -186,5 +185,5 @@ class Rag:
         return answer_dataset_result
 
     def evaluate(self, student_search_results_path, dataset_path):
-        obj = recall()
+        obj = Recall()
         obj.recall_at_k(student_search_results_path, dataset_path)
