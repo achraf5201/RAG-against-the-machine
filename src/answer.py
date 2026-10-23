@@ -3,17 +3,11 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
 class QwenChat:
-    def __init__(
-        self, model_name="Qwen/Qwen3-0.6B", enable_thinking=False, max_new_tokens=2048
-    ):
+    def __init__(self, model_name="Qwen/Qwen3-0.6B"):
         self.model_name = model_name
-        self.enable_thinking = enable_thinking
-        self.max_new_tokens = max_new_tokens
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_name, torch_dtype=torch.float32,
-        )
+        self.model = AutoModelForCausalLM.from_pretrained(model_name)
 
     def generate(self, context, query):
         messages = [
@@ -29,22 +23,13 @@ class QwenChat:
                 "content": f"Context:\n{context}\n\nQuestion: {query}",
             },
         ]
-
         text = self.tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True,
-            enable_thinking=self.enable_thinking,
+            messages, tokenize=False, add_generation_prompt=True, enable_thinking=True
         )
-
         model_inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
+        generated_ids = self.model.generate(**model_inputs, max_new_tokens=32768)
 
-        with torch.inference_mode():
-            generated_ids = self.model.generate(
-                **model_inputs, max_new_tokens=self.max_new_tokens
-            )
-
-        output_ids = generated_ids[0][len(model_inputs.input_ids[0]) :].tolist()
+        output_ids = generated_ids[0][len(model_inputs.input_ids[0]):].tolist()
 
         try:
             index = len(output_ids) - output_ids[::-1].index(151668)
