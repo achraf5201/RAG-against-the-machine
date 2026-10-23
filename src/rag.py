@@ -9,6 +9,9 @@ from src.models import (
     MinimalSearchResults,
     StudentSearchResults,
     AnsweredQuestion,
+    RagDataset,
+    MinimalAnswer,
+    StudentSearchResultsAndAnswer,
     MinimalSource,
 )
 from src.answer import QwenChat
@@ -52,7 +55,8 @@ class Rag:
             self.dir_path / "bm25_index", load_vocab=True)
         try:
             with open(
-                self.dir_path / "chunks.json", "r", encoding="utf-8") as f:
+                self.dir_path / "chunks.json", "r", encoding="utf-8"
+            ) as f:
                 self.chunks = json.load(f)
         except Exception as e:
             print_and_exit(e)
@@ -178,10 +182,9 @@ class Rag:
                 "sources": sources,
                 "answer": result,
             }
-            print(final_answer)
             answer_dataset_result.append(
                 final_answer=AnsweredQuestion(**final_answer))
-        print(answer_dataset_result)
+        # validat_obj = StudentSearchResults(self.answer_dataset)
         return answer_dataset_result
 
     def evaluate(self, student_search_results_path, dataset_path):
