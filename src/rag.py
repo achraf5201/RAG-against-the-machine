@@ -22,8 +22,11 @@ class Rag:
     def __init__(self) -> None:
         self.retriever = bm25s.BM25()
         self.dir_path = Path("data/processed")
+        self.dir_path.mkdir(parents=True, exist_ok=True)
         self.raw_dir = Path("data/raw")
+        self.raw_dir.mkdir(parents=True, exist_ok=True)
         self.output = Path("data/output")
+        self.output.mkdir(parents=True, exist_ok=True)
         self.flag = 1
 
     @staticmethod
@@ -46,7 +49,7 @@ class Rag:
 
         self.corpus_tokens = bm25s.tokenize(self.texts)
         self.retriever.index(self.corpus_tokens)
-        self.dir_path.mkdir(parents=True, exist_ok=True)
+        
         self.retriever.save(self.dir_path / "bm25_index")
         chunk_metadata = [chunk.metadata for chunk in self.chunks]
         with open(self.dir_path / "chunks.json", "w", encoding="utf-8") as f:
@@ -130,8 +133,7 @@ class Rag:
             chunk["first_character_index"]: chunk["last_character_index"]]
 
     def answer(self, query: str, k: int) -> Dict:
-        search_result = self.search(query, k)
-        retrieved_chunks = search_result["retrieved_sources"]
+        retrieved_chunks = self.search(query, k)
 
         contents = []
         for chunk_info in retrieved_chunks:
@@ -195,7 +197,7 @@ class Rag:
             ]
             result = qwen.generate(context, search["question"])
             final_answer = {
-                "question_id": str(uuid.uuid4()),
+                "question_id": search["question_id"],
                 "question": search["question"],
                 "retrieved_sources": sources,
                 "answer": result,
