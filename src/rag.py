@@ -1,3 +1,4 @@
+import os
 import bm25s
 import json
 import uuid
@@ -122,7 +123,9 @@ class Rag:
 
         result = StudentSearchResults(search_results=search_results, k=k)
         result = result.model_dump()
-        with open(save_directory + "search.json", "w", encoding="utf-8") as f:
+        dataset_filename = Path(dataset_path).stem
+        save_path = path / f"{dataset_filename}_search_results.json"
+        with open(save_path, "w", encoding="utf-8") as f:
             json.dump(result, f, indent=4)
         return result
 
@@ -165,8 +168,9 @@ class Rag:
             json.dump(result, f, indent=4)
         return result
 
-    def answer_dataset(self, student_search_results_path: str, save_directory: str) -> Dict:
-        data = {}
+    def answer_dataset(
+            self, student_search_results_path: str, save_directory: str
+    ) -> Dict:
         answer_dataset_result = []
 
         path = Path(save_directory)
@@ -212,6 +216,7 @@ class Rag:
             json.dump(result, f, indent=4)
         return result
 
-    def evaluate(self, student_search_results_path: str, dataset_path: str) -> None:
+    def evaluate(
+            self, student_search_results_path: str, dataset_path: str) -> None:
         obj = Recall()
         obj.recall_at_k(student_search_results_path, dataset_path)

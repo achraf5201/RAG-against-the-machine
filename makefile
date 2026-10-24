@@ -22,6 +22,7 @@ mkdir:
 unzip: 
 	unzip vllm-0.10.1.zip -d data/raw/
 	unzip datasets_public.zip -d data
+	unzip datasets_private.zip -d data/datasets/
 
 clean:
 	rm -rf data
