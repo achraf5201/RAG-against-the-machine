@@ -1,16 +1,18 @@
 import json
 from src.models import RagDataset
+from typing import Dict
+
 
 class Recall:
     def __init__(self):
         pass
 
-    def IoU(self, a1, a2, b1, b2):
+    def IoU(self, a1: int, a2: int, b1: int, b2: int) -> float:
         intersection = max(0, min(a2, b2) - max(a1, b1))
         union = (a2 - a1) + (b2 - b1) - intersection
         return intersection / union if union > 0 else 0.0
 
-    def open_and_read(self, path):
+    def open_and_read(self, path: str) -> Dict:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 return json.load(f)
@@ -18,7 +20,7 @@ class Recall:
             print(e)
             exit()
 
-    def recall_at_k(self, path, dataset_path):
+    def recall_at_k(self, path: str, dataset_path: str) -> Dict:
         try:
             search = self.open_and_read(path)
             RagDataset(rag_questions=search["search_results"])
@@ -80,5 +82,5 @@ class Recall:
                 f"({float(self.recall_res[key])}%)"
             )
         print("Recall@K:", scores)
-
+        print(type(scores))
         return scores

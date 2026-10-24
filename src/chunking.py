@@ -8,12 +8,12 @@ from src.models import MinimalSource
 
 
 class Chunking:
-    def __init__(self, path, max_chunk_size=200):
+    def __init__(self, path: str, max_chunk_size: int = 200) -> None:
         self.chunks = []
         self.path = path
         self.max_chunk_size = max_chunk_size
 
-    def load_documents(self, extension):
+    def load_documents(self, extension: str) -> Document:
         documents = []
 
         for filename in self.path.rglob(extension):
@@ -29,7 +29,7 @@ class Chunking:
 
         return documents
 
-    def chunk(self, language, extension):
+    def chunk(self, language: Language, extension: str) -> None:
         documents = self.load_documents(extension)
 
         if extension in ["*.py", "*.md"]:
@@ -63,20 +63,20 @@ class Chunking:
             )
         self.chunks.extend(chunks)
 
-    def chunking_markdown(self):
-        return self.chunk(
+    def chunking_markdown(self) -> None:
+        self.chunk(
             language=Language.MARKDOWN,
             extension="*.md",
         )
 
-    def chunking_python(self):
-        return self.chunk(
+    def chunking_python(self) -> None:
+        self.chunk(
             language=Language.PYTHON,
             extension="*.py",
         )
 
-    def chunking_text(self):
-        return self.chunk(
+    def chunking_text(self) -> None:
+        self.chunk(
             language=None,
             extension="*.txt",
         )

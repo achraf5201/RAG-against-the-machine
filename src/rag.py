@@ -2,6 +2,7 @@ import bm25s
 import json
 import uuid
 from tqdm import tqdm
+from typing import Dict, List
 from pathlib import Path
 from src.chunking import Chunking
 from src.own_recall import Recall
@@ -18,7 +19,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
 class Rag:
-    def __init__(self):
+    def __init__(self) -> None:
         self.retriever = bm25s.BM25()
         self.dir_path = Path("data/processed")
         self.raw_dir = Path("data/raw")
@@ -26,11 +27,11 @@ class Rag:
         self.flag = 1
 
     @staticmethod
-    def print_and_exit(e):
+    def print_and_exit(e) -> None:
         print(e)
         exit()
 
-    def index(self, max_chunk_size=2000):
+    def index(self, max_chunk_size: int = 2000) -> None:
         self.chunking = Chunking(Path(self.raw_dir), max_chunk_size)
         self.chunking.chunking_markdown()
         self.chunking.chunking_python()
@@ -51,7 +52,7 @@ class Rag:
         with open(self.dir_path / "chunks.json", "w", encoding="utf-8") as f:
             json.dump(chunk_metadata, f, indent=4)
 
-    def _load_index(self):
+    def _load_index(self) -> None:
         self.retriever = bm25s.BM25.load(
             self.dir_path / "bm25_index", load_vocab=True)
         try:
@@ -66,7 +67,7 @@ class Rag:
         except BaseException as e:
             self.print_and_exit(e)
 
-    def search(self, query, k):
+    def search(self, query: str, k: int) -> Dict:
         try:
             self._load_index()
         except Exception as e:
@@ -88,13 +89,14 @@ class Rag:
             question=query,
             retrieved_sources=retrieved_chunks,
         ).model_dump()
+
         if self.flag:
             with open(self.output / "search.json", "w", encoding="utf-8") as f:
                 json.dump(result, f, indent=4)
         return retrieved_chunks
 
-    def search_dataset(self, dataset_path, k, save_directory):
-        data = {}
+    def search_dataset(
+            self, dataset_path: str, k: int, save_directory: str) -> dict:
         self.flag = 0
         path = Path(save_directory)
         path.mkdir(parents=True, exist_ok=True)
@@ -102,13 +104,11 @@ class Rag:
         try:
             with open(dataset_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                RagDataset(rag_questions=data["rag_questions"])
-
         except Exception as e:
             self.print_and_exit(e)
 
         search_results = []
-        for d in tqdm(data["rag_questions"]):
+        for d in data["rag_questions"]:
             search_results.append(
                 {
                     "question_id": d["question_id"],
@@ -119,18 +119,19 @@ class Rag:
 
         result = StudentSearchResults(search_results=search_results, k=k)
         result = result.model_dump()
-        with open(path / "search.json", "w", encoding="utf-8") as f:
+        with open(save_directory + "search.json", "w", encoding="utf-8") as f:
             json.dump(result, f, indent=4)
         return result
 
-    def _load_chunk_text(self, chunk):
+    def _load_chunk_text(self, chunk: str) -> str:
         text = Path(
             chunk["file_path"]).read_text(encoding="utf-8", errors="replace")
         return text[
             chunk["first_character_index"]: chunk["last_character_index"]]
 
-    def answer(self, query, k):
-        retrieved_chunks = self.search(query, k)
+    def answer(self, query: str, k: int) -> Dict:
+        search_result = self.search(query, k)
+        retrieved_chunks = search_result["retrieved_sources"]
 
         contents = []
         for chunk_info in retrieved_chunks:
@@ -162,7 +163,7 @@ class Rag:
             json.dump(result, f, indent=4)
         return result
 
-    def answer_dataset(self, student_search_results_path, save_directory):
+    def answer_dataset(self, student_search_results_path: str, save_directory: str) -> Dict:
         data = {}
         answer_dataset_result = []
 
@@ -209,6 +210,6 @@ class Rag:
             json.dump(result, f, indent=4)
         return result
 
-    def evaluate(self, student_search_results_path, dataset_path):
+    def evaluate(self, student_search_results_path: str, dataset_path: str) -> None:
         obj = Recall()
         obj.recall_at_k(student_search_results_path, dataset_path)
