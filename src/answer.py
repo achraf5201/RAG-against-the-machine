@@ -1,4 +1,3 @@
-import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
@@ -15,7 +14,8 @@ class QwenChat:
                 "role": "system",
                 "content": (
                     "Answer the question using only the context. "
-                    "Be concise. If the context is insufficient, say you don't know."
+                    "Be concise. If the context is insufficient, "
+                    "say you don't know."
                 ),
             },
             {
@@ -24,10 +24,13 @@ class QwenChat:
             },
         ]
         text = self.tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True, enable_thinking=True
+            messages, tokenize=False,
+            add_generation_prompt=True, enable_thinking=True
         )
-        model_inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
-        generated_ids = self.model.generate(**model_inputs, max_new_tokens=32768)
+        model_inputs = self.tokenizer([text], return_tensors="pt").to(
+            self.model.device)
+        generated_ids = self.model.generate(
+            **model_inputs, max_new_tokens=32768)
 
         output_ids = generated_ids[0][len(model_inputs.input_ids[0]):].tolist()
 

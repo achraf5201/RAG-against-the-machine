@@ -1,5 +1,5 @@
 import json
-
+from src.models import RagDataset
 
 class Recall:
     def __init__(self):
@@ -19,8 +19,14 @@ class Recall:
             exit()
 
     def recall_at_k(self, path, dataset_path):
-        search = self.open_and_read(path)
-        dataset = self.open_and_read(dataset_path)
+        try:
+            search = self.open_and_read(path)
+            RagDataset(rag_questions=search["search_results"])
+            dataset = self.open_and_read(dataset_path)
+            RagDataset(rag_questions=dataset["rag_questions"])
+        except Exception as e:
+            print(e)
+            exit()
         rag_questions = dataset["rag_questions"]
         search_results = search["search_results"]
         self.recall_res = {
