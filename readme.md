@@ -4,7 +4,7 @@
 
 A Retrieval-Augmented Generation (RAG) system that answers questions about the [vLLM](https://github.com/vllm-project/vllm) v0.10.1 codebase. It indexes the repository, retrieves the most relevant snippets for a question, and has a small local model (`Qwen/Qwen3-0.6B`) write an answer grounded in them.
 
-> **Before submitting:** replace every `XX`, `login` and `TODO` below with your own real values, and make sure each statement matches what your code actually does. You will be asked to explain and defend all of it.
+
 
 ---
 
@@ -185,8 +185,6 @@ uv run python -m src answer "How do I enable LoRA adapters?" --k 5
 | Pipeline | `src/pipeline.py` | Orchestrates single-query and dataset-level commands |
 | Evaluation | `src/evaluate.py` | Local recall@k computation |
 
-> **TODO:** adjust file and module names to match your actual layout.
-
 The index is built once by `index` and loaded once by every other command, so a whole dataset is searched without rebuilding or re-reading anything per question.
 
 ---
@@ -218,8 +216,6 @@ A Python file and a Markdown page do not break apart the same way, so the indexe
 | 1500 | XX.X % | XX.X % | XX s |
 | 1000 | XX.X % | XX.X % | XX s |
 | 500 | XX.X % | XX.X % | XX s |
-
-> **TODO:** fill in your measured values and add one or two sentences on what you observed (for example, smaller chunks give more precise spans but split the answer across several chunks).
 
 ---
 
@@ -258,8 +254,6 @@ Questions and source code rarely use the same words, so tokenization is tuned fo
 - Results are deduplicated so the top-k are not several near-identical chunks of the same region.
 - `file_path` is written exactly as in the ingested corpus (`data/raw/vllm-0.10.1/...`), because the grader compares paths verbatim.
 
-> **TODO:** if you implemented TF-IDF instead of (or in addition to) BM25, describe it here, and describe any extras (hybrid retrieval, reranking, query expansion).
-
 ---
 
 ## Answer generation
@@ -291,8 +285,6 @@ Questions and source code rarely use the same words, so tokenization is tuned fo
 | Number of chunks indexed | XX | n/a |
 | Answer generation, per question | XX s | n/a |
 
-> **TODO:** note the machine used for these measurements, and discuss where recall is lost (for example, which question types fail and why).
-
 ---
 
 ## Design decisions
@@ -308,8 +300,6 @@ Questions and source code rarely use the same words, so tokenization is tuned fo
 ---
 
 ## Challenges faced
-
-> **TODO:** replace with your own experience. Likely topics:
 
 - **Exact file paths:** the grader compares `file_path` verbatim, so the corpus path prefix must be preserved from indexing through to the output.
 - **Chunk size limit:** a single source over 2000 characters invalidates the whole output, so the cap is enforced at chunk creation and checked on output.
@@ -334,8 +324,6 @@ Questions and source code rarely use the same words, so tokenization is tuned fo
 - [uv documentation](https://docs.astral.sh/uv/)
 
 ### Use of AI
-
-> **TODO:** describe honestly which tasks and which parts of the project you used AI for, and how you verified the result. Example format:
 
 - *Concepts:* used AI to understand BM25 and chunking trade-offs, then validated against the documentation.
 - *Boilerplate:* used AI for the Makefile and the pydantic model skeletons, then reviewed and tested them.
