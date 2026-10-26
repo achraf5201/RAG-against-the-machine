@@ -50,7 +50,7 @@ class Rag:
 
         self.corpus_tokens = bm25s.tokenize(self.texts)
         self.retriever.index(self.corpus_tokens)
-        
+
         self.retriever.save(self.dir_path / "bm25_index")
         chunk_metadata = [chunk.metadata for chunk in self.chunks]
         with open(self.dir_path / "chunks.json", "w", encoding="utf-8") as f:
@@ -112,7 +112,7 @@ class Rag:
             self.print_and_exit(e)
 
         search_results = []
-        for d in data["rag_questions"]:
+        for d in tqdm(data["rag_questions"]):
             search_results.append(
                 {
                     "question_id": d["question_id"],
