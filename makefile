@@ -1,31 +1,29 @@
-index:
-	uv run -m src index -max_chunk_size 2000
+PYTHON := uv run python3
+MYPY_FLAGS := --warn-return-any --warn-unused-ignores \
+	--ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
 
-search:
-	uv run -m src search "What activation formats does the fused batched MoE layer return in vLLM?" 5
+ARGS ?=
 
-search_dataset:
-	uv run -m src search_dataset -dataset_path "data/datasets_public/public/UnansweredQuestions/dataset_docs_public.json" -k 10 -save_directory "data/output/search_results/"
+.PHONY: install run debug clean lint lint-strict
 
-answer:
-	uv run -m src answer "What activation formats does the fused batched MoE layer return in vLLM?" 5
+install:
+	uv sync
 
-answer_dataset:
-	uv run -m src answer_dataset -student_search_results_path "data/output/search_results/search.json" -save_directory "data/output/answer_results/"
+run:
+	$(PYTHON) -m src $(ARGS)
 
-evaluate:
-	uv run -m src evaluate -student_search_results_path data/output/search_results/search.json -dataset_path data/datasets_public/public/AnsweredQuestions/dataset_docs_public.json
-
-mkdir:
-	mkdir -p data/raw
-
-unzip: 
-	unzip vllm-0.10.1.zip -d data/raw/
-	unzip datasets_public.zip -d data
-	unzip datasets_private.zip -d data/datasets/
+debug:
+	$(PYTHON) -m pdb -m src $(ARGS)
 
 clean:
-	rm -rf data
+	find . -name .venv -prune -o -type d -name "__pycache__" \
+		-exec rm -rf {} +
+	rm -rf .mypy_cache .pytest_cache .ruff_cache
 
-flake8:
-	uv run -m flake8 src
+lint:
+	uv run flake8 .
+	uv run mypy . $(MYPY_FLAGS)
+
+lint-strict:
+	uv run flake8 .
+	uv run mypy . --strict
