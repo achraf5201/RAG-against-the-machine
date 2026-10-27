@@ -1,14 +1,47 @@
+"""Answer generation with a local Qwen chat model."""
+
+from typing import Any, cast
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
 class QwenChat:
-    def __init__(self, model_name="Qwen/Qwen3-0.6B"):
+    """Wrapper around a Hugging Face Qwen3 chat model.
+
+    Attributes:
+        model_name: Hugging Face model identifier or local path.
+        tokenizer: Tokenizer matching the model.
+        model: The loaded causal language model.
+    """
+
+    def __init__(self, model_name: str = "Qwen/Qwen3-0.6B") -> None:
+        """Load the tokenizer and the model.
+
+        Args:
+            model_name: Hugging Face model identifier or local path. Defaults
+                to ``"Qwen/Qwen3-0.6B"``. Weights are downloaded on first use.
+        """
         self.model_name = model_name
 
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModelForCausalLM.from_pretrained(model_name)
+        self.tokenizer: Any = AutoTokenizer.from_pretrained(model_name)
+        self.model: Any = AutoModelForCausalLM.from_pretrained(model_name)
 
-    def generate(self, context, query):
+    def generate(self, context: str, query: str) -> str:
+        """Generate an answer to a question using only the given context.
+
+        The model is instructed to answer concisely from the context and to
+        say it does not know if the context is insufficient. Thinking mode is
+        enabled and up to 32768 new tokens are generated; everything up to and
+        including the last ``</think>`` token (id 151668) is discarded.
+
+        Args:
+            context: Text passages the answer must be based on.
+            query: The question to answer.
+
+        Returns:
+            The generated answer without the thinking section and without
+            leading or trailing newlines. If no ``</think>`` token is found,
+            the whole generated text is returned.
+        """
         messages = [
             {
                 "role": "system",
@@ -39,8 +72,8 @@ class QwenChat:
         except ValueError:
             index = 0
 
-        content = self.tokenizer.decode(
+        content = cast(str, self.tokenizer.decode(
             output_ids[index:], skip_special_tokens=True
-        ).strip("\n")
+        )).strip("\n")
 
         return content

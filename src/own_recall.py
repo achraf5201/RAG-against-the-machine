@@ -1,26 +1,86 @@
+"""Recall@k evaluation of search results against a reference dataset."""
+
 import json
 from src.models import RagDataset
 from typing import Dict
 
 
 class Recall:
-    def __init__(self):
+    """Compute recall@k of retrieved sources against reference sources.
+
+    Attributes:
+        recall_res: Number of questions answered correctly at each cut-off
+            (``recall@1``, ``recall@3``, ``recall@5``, ``recall@10``). Only
+            set once :meth:`recall_at_k` has been called.
+    """
+
+    def __init__(self) -> None:
+        """Initialize the evaluator (takes no arguments and keeps no state)."""
         pass
 
     def IoU(self, a1: int, a2: int, b1: int, b2: int) -> float:
+        """Compute the intersection over union of two character ranges.
+
+        Args:
+            a1: Start index of the first range.
+            a2: End index of the first range.
+            b1: Start index of the second range.
+            b2: End index of the second range.
+
+        Returns:
+            The length of the overlap divided by the length of the union of
+            the two ranges, or ``0.0`` if the union is empty.
+        """
         intersection = max(0, min(a2, b2) - max(a1, b1))
         union = (a2 - a1) + (b2 - b1) - intersection
         return intersection / union if union > 0 else 0.0
 
     def open_and_read(self, path: str) -> Dict:
+        """Read and parse a JSON file.
+
+        Args:
+            path: Path of the JSON file to read.
+
+        Returns:
+            The parsed JSON content.
+
+        Raises:
+            SystemExit: If the file cannot be opened or parsed. The error is
+                printed before the process exits.
+        """
         try:
             with open(path, "r", encoding="utf-8") as f:
-                return json.load(f)
+                data: Dict = json.load(f)
+                return data
         except Exception as e:
             print(e)
             exit()
 
     def recall_at_k(self, path: str, dataset_path: str) -> Dict:
+        """Compute recall@1, @3, @5 and @10 of search results for a dataset.
+
+        Both files are validated against ``RagDataset``. Results and dataset
+        questions are paired by position and must share the same
+        ``question_id``. A question counts as a hit at rank ``j`` when the
+        ``j``-th retrieved source comes from the same file as the first
+        reference source and overlaps it with an IoU of at least ``0.05``;
+        only the first matching rank of each question is counted. Scores are
+        normalised by a fixed total of 100 questions. The counts and scores
+        are also printed.
+
+        Args:
+            path: Path to the search-results JSON file
+                (``StudentSearchResults`` format).
+            dataset_path: Path to the reference dataset JSON file
+                (``RagDataset`` format with answered questions).
+
+        Returns:
+            A mapping from ``"recall@1"``, ``"recall@3"``, ``"recall@5"`` and
+            ``"recall@10"`` to the corresponding score.
+
+        Raises:
+            SystemExit: If either file cannot be read or fails validation.
+        """
         try:
             search = self.open_and_read(path)
             RagDataset(rag_questions=search["search_results"])
