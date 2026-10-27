@@ -22,4 +22,4 @@ clean:
 
 lint:
 	uv run flake8 src/
-	uv run mypy . $(MYPY_FLAGS)
+	uv run mypy src/ $(MYPY_FLAGS)

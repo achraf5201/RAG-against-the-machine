@@ -23,7 +23,7 @@ class Chunking:
         max_chunk_size: Maximum chunk size, in characters.
     """
 
-    def __init__(self, path: Path, max_chunk_size: int = 200) -> None:
+    def __init__(self, path: Path, max_chunk_size: int) -> None:
         """Initialize the chunker.
 
         Args:
@@ -116,21 +116,12 @@ class Chunking:
 
     def chunking_markdown(self) -> None:
         """Chunk all Markdown (``*.md``) files under ``path``."""
-        self.chunk(
-            language=Language.MARKDOWN,
-            extension="*.md",
-        )
+        self.chunk(Language.MARKDOWN, "*.md")
 
     def chunking_python(self) -> None:
         """Chunk all Python (``*.py``) files under ``path``."""
-        self.chunk(
-            language=Language.PYTHON,
-            extension="*.py",
-        )
+        self.chunk(Language.PYTHON, "*.py")
 
     def chunking_text(self) -> None:
         """Chunk all plain-text (``*.txt``) files under ``path``."""
-        self.chunk(
-            language=None,
-            extension="*.txt",
-        )
+        self.chunk(language=None, extension="*.txt")
