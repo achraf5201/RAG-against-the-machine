@@ -15,7 +15,11 @@ from src.models import (
     MinimalAnswer,
     StudentSearchResultsAndAnswer,
 )
-from src.answer import QwenChat
+
+try:
+    from src.answer import QwenChat
+except BaseException as e:
+    print(e)
 
 
 class Rag:
@@ -72,6 +76,15 @@ class Rag:
         Raises:
             SystemExit: If no text chunks were found.
         """
+        try:
+            if max_chunk_size > 2000 or max_chunk_size < 100:
+                raise ValueError(
+                    "max_chunk_size must be greater than 100 "
+                    "and less than 2000"
+                )
+        except ValueError as e:
+            self.print_and_exit(e)
+
         self.chunking = Chunking(Path(self.raw_dir), max_chunk_size)
         self.chunking.chunking_markdown()
         self.chunking.chunking_python()
@@ -135,6 +148,9 @@ class Rag:
             SystemExit: If the index cannot be loaded.
         """
         try:
+            if k > 10:
+                raise ValueError(
+                    "Invalid value for 'top_k': must be 10 or less.")
             self._load_index()
         except Exception as e:
             self.print_and_exit(e)
@@ -312,7 +328,7 @@ class Rag:
         except Exception as e:
             self.print_and_exit(e)
 
-        for search in data["search_results"]:
+        for search in tqdm(data["search_results"], desc="answer dataset"):
             contents = []
             for chunk_info in search["retrieved_sources"]:
                 try:
