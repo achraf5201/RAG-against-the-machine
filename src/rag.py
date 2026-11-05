@@ -1,6 +1,7 @@
 """Retrieval-augmented generation pipeline: index, search, answer."""
 
 import bm25s
+import sys
 import json
 import uuid
 from tqdm import tqdm
@@ -60,7 +61,7 @@ class Rag:
             SystemExit: Always.
         """
         print(e)
-        exit()
+        sys.exit()
 
     def index(self, max_chunk_size: int = 2000) -> None:
         """Chunk the raw files and build and save the BM25 index.
@@ -77,33 +78,40 @@ class Rag:
             SystemExit: If no text chunks were found.
         """
         try:
+            max_chunk_size = int(max_chunk_size)
             if max_chunk_size > 2000 or max_chunk_size < 100:
                 raise ValueError(
                     "max_chunk_size must be greater than 100 "
                     "and less than 2000"
                 )
-        except ValueError as e:
+        except BaseException as e:
             self.print_and_exit(e)
-
-        self.chunking = Chunking(Path(self.raw_dir), max_chunk_size)
-        self.chunking.chunking_markdown()
-        self.chunking.chunking_python()
-        self.chunking.chunking_text()
-        self.chunks: List[Any] = self.chunking.chunks
-        self.texts = [chunk.page_content for chunk in self.chunks]
         try:
+            self.chunking = Chunking(Path(self.raw_dir), max_chunk_size)
+            self.chunking.chunking_markdown()
+            self.chunking.chunking_python()
+            self.chunking.chunking_text()
+            self.chunks: List[Any] = self.chunking.chunks
+            self.texts = [chunk.page_content for chunk in self.chunks]
             if len(self.texts) == 0:
                 raise ValueError("No text chunks were found.")
-        except ValueError as e:
+        except BaseException as e:
             self.print_and_exit(e)
 
-        self.corpus_tokens = bm25s.tokenize(self.texts)
-        self.retriever.index(self.corpus_tokens)
-
-        self.retriever.save(self.dir_path / "bm25_index")
-        chunk_metadata = [chunk.metadata for chunk in self.chunks]
-        with open(self.dir_path / "chunks.json", "w", encoding="utf-8") as f:
-            json.dump(chunk_metadata, f, indent=4)
+        try:
+            self.corpus_tokens = bm25s.tokenize(self.texts)
+            self.retriever.index(self.corpus_tokens)
+            self.retriever.save(self.dir_path / "bm25_index")
+            chunk_metadata = [chunk.metadata for chunk in self.chunks]
+        except BaseException as e:
+            self.print_and_exit(e)
+        try:
+            with open(
+                self.dir_path / "chunks.json", "w", encoding="utf-8"
+            ) as f:
+                json.dump(chunk_metadata, f, indent=4)
+        except BaseException as e:
+            self.print_and_exit(e)
 
     def _load_index(self) -> None:
         """Load the saved BM25 index and chunk metadata.
@@ -114,9 +122,9 @@ class Rag:
         Raises:
             SystemExit: If the chunk metadata cannot be read or is invalid.
         """
-        self.retriever = bm25s.BM25.load(
-            self.dir_path / "bm25_index", load_vocab=True)
         try:
+            self.retriever = bm25s.BM25.load(
+                self.dir_path / "bm25_index", load_vocab=True)
             with open(
                 self.dir_path / "chunks.json", "r", encoding="utf-8"
             ) as f:
@@ -148,37 +156,54 @@ class Rag:
             SystemExit: If the index cannot be loaded.
         """
         try:
-            if k > 10:
+            if k <= 0:
                 raise ValueError(
-                    "Invalid value for 'top_k': must be 10 or less.")
+                    "[ERROR] Invalid value for 'top_k': Must be 1 or greater.")
+            if query.strip() == "":
+                raise ValueError(
+                    "[ERROR] You need to ask a question")
             self._load_index()
-        except Exception as e:
+        except BaseException as e:
+            self.print_and_exit(e)
+        try:
+            query_tokens = bm25s.tokenize(query)
+            result, scores = self.retriever.retrieve(
+                query_tokens, k=min(k, len(self.chunks))
+            )
+        except BaseException as e:
             self.print_and_exit(e)
 
-        query_tokens = bm25s.tokenize(query)
-        result, scores = self.retriever.retrieve(
-            query_tokens, k=min(k, len(self.chunks))
-        )
         retrieved_chunks = []
-
-        for idx in result[0]:
-            idx = int(idx)
-            chunk = self.chunks[idx]
-            retrieved_chunks.append(chunk)
-
-        result = MinimalSearchResults(
-            question_id=str(uuid.uuid4()),
-            question=query,
-            retrieved_sources=retrieved_chunks,
-        ).model_dump()
-
-        if self.flag:
-            with open(self.output / "search.json", "w", encoding="utf-8") as f:
-                json.dump(result, f, indent=4)
+        try:
+            for idx in result[0]:
+                idx = int(idx)
+                chunk = self.chunks[idx]
+                retrieved_chunks.append(chunk)
+        except BaseException as e:
+            self.print_and_exit(e)
+        sources: Dict[str, Any] = {
+            "question_id": str(uuid.uuid4()),
+            "question": query,
+            "retrieved_sources": retrieved_chunks,
+        }
+        m_sources = MinimalSearchResults(**sources)
+        result_search: Dict[str, Any] = {
+            "search_results": [m_sources],
+            "k": k
+        }
+        result = StudentSearchResults(**result_search).model_dump()
+        try:
+            if self.flag:
+                with open(
+                    self.output / "search.json", "w", encoding="utf-8"
+                ) as f:
+                    json.dump(result, f, indent=4)
+        except BaseException as e:
+            self.print_and_exit(e)
         return retrieved_chunks
 
     def search_dataset(
-            self, dataset_path: str, k: int, save_directory: str) -> dict:
+            self, dataset_path: str, k: int, save_directory: str) -> Dict:
         """Run :meth:`search` for every question of a dataset.
 
         The results are saved to
@@ -196,6 +221,12 @@ class Rag:
         Raises:
             SystemExit: If the dataset cannot be read.
         """
+        try:
+            if k <= 0:
+                raise ValueError(
+                    "[ERROR] Invalid value for 'top_k': Must be 1 or greater.")
+        except BaseException as e:
+            self.print_and_exit(e)
         self.flag = 0
         path = Path(save_directory)
         path.mkdir(parents=True, exist_ok=True)
@@ -203,26 +234,34 @@ class Rag:
         try:
             with open(dataset_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-        except Exception as e:
+        except BaseException as e:
             self.print_and_exit(e)
 
         search_results: List[Any] = []
-        for d in tqdm(data["rag_questions"]):
-            search_results.append(
-                {
-                    "question_id": d["question_id"],
-                    "question": d["question"],
-                    "retrieved_sources": self.search(d["question"], k),
-                }
-            )
+        try:
+            for d in tqdm(data["rag_questions"]):
+                search_results.append(
+                    {
+                        "question_id": d["question_id"],
+                        "question": d["question"],
+                        "retrieved_sources": self.search(d["question"], k),
+                    }
+                )
 
-        result: Union[StudentSearchResults, Dict[str, Any]]
-        result = StudentSearchResults(search_results=search_results, k=k)
-        result = result.model_dump()
-        dataset_filename = Path(dataset_path).stem
-        save_path = path / f"{dataset_filename}_search_results.json"
-        with open(save_path, "w", encoding="utf-8") as f:
-            json.dump(result, f, indent=4)
+        except BaseException as e:
+            self.print_and_exit(e)
+        try:
+            result: Dict[Any, Any]
+            student_search = StudentSearchResults(
+                search_results=search_results, k=k)
+            result = student_search.model_dump()
+            dataset_filename = Path(dataset_path).stem
+            save_path = path / f"{dataset_filename}_search_results.json"
+
+            with open(save_path, "w", encoding="utf-8") as f:
+                json.dump(result, f, indent=4)
+        except BaseException as e:
+            self.print_and_exit(e)
         return result
 
     def _load_chunk_text(self, chunk: Dict[str, Any]) -> str:
@@ -262,35 +301,44 @@ class Rag:
         retrieved_chunks = self.search(query, k)
 
         contents = []
-        for chunk_info in retrieved_chunks:
-            try:
-                contents.append(self._load_chunk_text(chunk_info))
-            except OSError as e:
-                print(f"Could not read {chunk_info['file_path']}: {e}")
+        try:
+            if k <= 0:
+                raise ValueError(
+                    "[ERROR] Invalid value for 'top_k': Must be 1 or greater.")
+            if query.strip() == "":
+                raise ValueError(
+                    "[ERROR] You need to ask a question")
+            for chunk_info in retrieved_chunks:
+                try:
+                    contents.append(self._load_chunk_text(chunk_info))
+                except BaseException as e:
+                    print(f"Could not read {chunk_info['file_path']}: {e}")
 
-        if not contents:
-            return "No context could be loaded for this question."
+            if not contents:
+                return "No context could be loaded for this question."
 
-        context = "\n\n".join(contents)
-        qwen = QwenChat()
-        sources = [
-            MinimalSource(**chunk_info) for chunk_info in retrieved_chunks]
-        result: Union[str, Dict[str, Any]]
-        result = qwen.generate(context, query)
-        final_answer: Union[Dict[str, Any], MinimalAnswer]
-        final_answer = {
-            "question_id": str(uuid.uuid4()),
-            "question": query,
-            "retrieved_sources": sources,
-            "answer": result,
-        }
-        final_answer = MinimalAnswer(**final_answer)
-        result = StudentSearchResultsAndAnswer(
-            search_results=[final_answer], k=k).model_dump()
-        with open(
-            self.output / "answer.json", "w", encoding="utf-8"
-        ) as f:
-            json.dump(result, f, indent=4)
+            context = "\n\n".join(contents)
+            qwen = QwenChat()
+            sources = [
+                MinimalSource(**chunk_info) for chunk_info in retrieved_chunks]
+            result: Union[str, Dict[str, Any]]
+            result = qwen.generate(context, query)
+            final_answer: Union[Dict[str, Any], MinimalAnswer]
+            final_answer = {
+                "question_id": str(uuid.uuid4()),
+                "question": query,
+                "retrieved_sources": sources,
+                "answer": result,
+            }
+            final_answer = MinimalAnswer(**final_answer)
+            result = StudentSearchResultsAndAnswer(
+                search_results=[final_answer], k=k).model_dump()
+            with open(
+                self.output / "answer.json", "w", encoding="utf-8"
+            ) as f:
+                json.dump(result, f, indent=4)
+        except BaseException as e:
+            self.print_and_exit(e)
         return result
 
     def answer_dataset(
@@ -325,41 +373,43 @@ class Rag:
                 data = json.load(f)
                 StudentSearchResults(**data)
 
-        except Exception as e:
+        except BaseException as e:
             self.print_and_exit(e)
+        try:
+            for search in tqdm(data["search_results"], desc="answer dataset"):
+                contents = []
+                for chunk_info in search["retrieved_sources"]:
+                    try:
+                        contents.append(self._load_chunk_text(chunk_info))
+                    except BaseException as e:
+                        print(f"Could not read {chunk_info['file_path']}: {e}")
+                if not contents:
+                    return "No context could be loaded for this question."
 
-        for search in tqdm(data["search_results"], desc="answer dataset"):
-            contents = []
-            for chunk_info in search["retrieved_sources"]:
-                try:
-                    contents.append(self._load_chunk_text(chunk_info))
-                except OSError as e:
-                    print(f"Could not read {chunk_info['file_path']}: {e}")
-            if not contents:
-                return "No context could be loaded for this question."
-
-            context = "\n\n".join(contents)
-            qwen = QwenChat()
-            sources = [
-                MinimalSource(**chunk_info)
-                for chunk_info in search["retrieved_sources"]
-            ]
-            result: Union[str, Dict[str, Any]]
-            result = qwen.generate(context, search["question"])
-            final_answer: Dict[str, Any] = {
-                "question_id": search["question_id"],
-                "question": search["question"],
-                "retrieved_sources": sources,
-                "answer": result,
-            }
-            answer_dataset_result.append(
-                MinimalAnswer(**final_answer))
-        result = StudentSearchResultsAndAnswer(
-            search_results=answer_dataset_result, k=10).model_dump()
-        with open(
-            path / "answer_dataset.json", "w", encoding="utf-8"
-        ) as f:
-            json.dump(result, f, indent=4)
+                context = "\n\n".join(contents)
+                qwen = QwenChat()
+                sources = [
+                    MinimalSource(**chunk_info)
+                    for chunk_info in search["retrieved_sources"]
+                ]
+                result: Union[str, Dict[str, Any]]
+                result = qwen.generate(context, search["question"])
+                final_answer: Dict[str, Any] = {
+                    "question_id": search["question_id"],
+                    "question": search["question"],
+                    "retrieved_sources": sources,
+                    "answer": result,
+                }
+                answer_dataset_result.append(
+                    MinimalAnswer(**final_answer))
+            result = StudentSearchResultsAndAnswer(
+                search_results=answer_dataset_result, k=10).model_dump()
+            with open(
+                path / "answer_dataset.json", "w", encoding="utf-8"
+            ) as f:
+                json.dump(result, f, indent=4)
+        except BaseException as e:
+            self.print_and_exit(e)
         return result
 
     def evaluate(

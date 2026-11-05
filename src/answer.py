@@ -1,7 +1,11 @@
 """Answer generation with a local Qwen chat model."""
 
 from typing import Any, cast
-from transformers import AutoModelForCausalLM, AutoTokenizer
+try:
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+except BaseException as e:
+    print(e)
+    exit()
 
 
 class QwenChat:

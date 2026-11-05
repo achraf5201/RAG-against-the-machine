@@ -1,10 +1,2 @@
 .venv
-vllm-0.10.1
-file.txt
-datasets_public
 data
-exams
-private
-evaluations
-datasets_private
-student

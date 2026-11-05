@@ -3,6 +3,7 @@
 from langchain_core.documents import Document
 from langchain_text_splitters import (
     RecursiveCharacterTextSplitter,
+    MarkdownTextSplitter,
     Language,
 )
 from pathlib import Path
@@ -83,9 +84,15 @@ class Chunking:
         """
         documents = self.load_documents(extension)
 
-        if extension in ["*.py", "*.md"]:
+        if extension == "*.py":
             text_splitter = RecursiveCharacterTextSplitter.from_language(
                 language=cast(Language, language),
+                chunk_size=self.max_chunk_size,
+                chunk_overlap=100,
+                add_start_index=True,
+            )
+        elif extension == "*.md":
+            text_splitter = MarkdownTextSplitter(
                 chunk_size=self.max_chunk_size,
                 chunk_overlap=100,
                 add_start_index=True,
